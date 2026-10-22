@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>csv-to-json-generator // RETRO ARCADE API SUITE</title>
+    <!-- Google Pixel Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <!-- PapaParse for robust CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #070314;
+            --bg-panel: #120a24;
+            --bg-panel-header: #21153d;
+            --border-retro: #432b75;
+            --border-bright: #8b5cf6;
+            --neon-green: #00ff66;
+            --neon-pink: #ff007f;
+            --neon-cyan: #00f0ff;
+            --neon-yellow: #ffe600;
+            --text-main: #f3f0ff;
+            --text-dim: #9d8ec4;
+            --pixel-shadow: 6px 6px 0px #000000;
+            --pixel-shadow-sm: 3px 3px 0px #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            border-radius: 0 !important; /* Strict 90-degree pixel art geometry */
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            padding: 24px;
+            background-image: 
+                linear-gradient(rgba(10, 5, 25, 0.8) 50%, rgba(0, 0, 0, 0.8) 50%),
+                repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0, 240, 255, 0.04) 3px, rgba(0, 240, 255, 0.04) 6px);
+            background-size: 100% 6px;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        /* Retro Window Chrome */
+        .window-frame {
+            background: var(--bg-panel);
+            border: 4px solid var(--border-bright);
+            box-shadow: var(--pixel-shadow);
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .window-header {
+            background: var(--bg-panel-header);
+            border-bottom: 4px solid var(--border-bright);
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .window-title {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 11px;
+            color: var(--neon-cyan);
+            text-shadow: 2px 2px 0px #000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .win-btn {
+            width: 16px;
+            height: 16px;
+            background: var(--border-retro);
+            border: 2px solid #000;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: var(--text-main);
+            font-weight: bold;
+        }
+
+        .window-body {
+            padding: 24px;
+        }
+
+        /* Header Specific */
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            font-size: 38px;
+            animation: pulse-glow 1.5s infinite alternate;
+        }
+
+        h1 {
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(14px, 2.2vw, 22px);
+            color: var(--neon-green);
+            text-shadow: 3px 3px 0px #000;
+            line-height: 1.4;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-dim);
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        .status-badge {
+            background: var(--bg-dark);
+            border: 3px solid var(--neon-yellow);
+            padding: 10px 14px;
+            font-size: 11px;
+            font-family: 'Press Start 2P', monospace;
+            color: var(--neon-yellow);
+            box-shadow: var(--pixel-shadow-sm);
+        }
+
+        /* Navigation Tabs */
+        .tabs {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            background: var(--bg-panel);
+            color: var(--text-dim);
+            border: 4px solid var(--border-retro);
+            padding: 14px 20px;
+            cursor: pointer;
+            box-shadow: var(--pixel-shadow-sm);
+            transition: all 0.05s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            border-color: var(--neon-cyan);
+            color: var(--text-main);
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px #000;
+        }
+
+        .tab-btn.active {
+            background: var(--border-bright);
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #000;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* Panels */
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        /* Grid Layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Upload Area */
+        .upload-zone {
+            border: 4px dashed var(--border-bright);
+            background: var(--bg-dark);
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            box-shadow: inset 4px 4px 0px rgba(0,0,0,0.8);
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--neon-green);
+            background: rgba(0, 255, 102, 0.05);
+        }
+
+        #csvFileInput {
+            display: none;
+        }
+
+        /* Pixel Buttons */
+        .pixel-btn {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            background: var(--border-bright);
+            color: white;
+            border: 4px solid #000;
+            padding: 14px 22px;
+            cursor: pointer;
+            box-shadow: var(--pixel-shadow-sm);
+            transition: all 0.05s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-transform: uppercase;
+            text-decoration: none;
+        }
+
+        .pixel-btn:hover {
+            background: var(--neon-cyan);
+            color: #000;
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px #000;
+        }
+
+        .pixel-btn:active {
+            transform: translate(3px, 3px);
+            box-shadow: 1px 1px 0px #000;
+        }
+
+        .pixel-btn.green {
+            background: #047835;
+            color: var(--neon-green);
+            border-color: #000;
+        }
+        .pixel-btn.green:hover {
+            background: var(--neon-green);
+            color: #000;
+        }
+
+        .pixel-btn.pink {
+            background: #9d174d;
+            color: var(--neon-pink);
+            border-color: #000;
+        }
+        .pixel-btn.pink:hover {
+            background: var(--neon-pink);
+            color: #fff;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        /* Sample Presets */
+        .presets {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .presets span {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        /* Inputs & Textareas */
+        textarea.pixel-input, input.pixel-input, select.pixel-input {
+            width: 100%;
+            background: var(--bg-dark);
+            border: 4px solid var(--border-retro);
+            color: var(--neon-cyan);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 16px;
+            padding: 12px;
+            box-shadow: inset 3px 3px 0px #000;
+            resize: vertical;
+        }
+
+        textarea.pixel-input:focus, input.pixel-input:focus, select.pixel-input:focus {
+            outline: none;
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        /* Tables / Data Grid */
+        .table-container {
+            max-height: 400px;
+            overflow: auto;
+            border: 4px solid var(--border-retro);
+            background: var(--bg-dark);
+            margin-top: 15px;
+            box-shadow: inset 3px 3px 0px #000;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        th {
+            background: var(--bg-panel-header);
+            color: var(--neon-yellow);
+            font-family: 'Press Start 2P', monospace;
+            font-size: 9px;
+            padding: 14px 16px;
+            border-bottom: 4px solid var(--border-bright);
+            border-right: 2px solid var(--border-retro);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 2px solid var(--border-retro);
+            border-right: 2px solid var(--border-retro);
+        }
+
+        tr:hover td {
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--neon-green);
+        }
+
+        /* Stats & Info Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-dark);
+            border: 4px solid var(--border-retro);
+            padding: 16px;
+            box-shadow: var(--pixel-shadow-sm);
+        }
+
+        .stat-label {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 9px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-family: 'Press Start 2P', monospace;
+            font-size: 14px;
+            color: var(--neon-green);
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* Endpoint Config */
+        .endpoint-box {
+            background: var(--bg-dark);
+            border: 4px solid var(--neon-green);
+            padding: 16px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: var(--pixel-shadow-sm);
+        }
+
+        .endpoint-url {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 16px;
+            color: var(--neon-green);
+            word-break: break-all;
+        }
+
+        .method-tag {
+            background: var(--neon-green);
+            color: #000;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 9px;
+            padding: 6px 10px;
+            font-weight: bold;
+            border: 2px solid #000;
+        }
+
+        /* Playground / Sandbox */
+        .sandbox-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .sandbox-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .code-box {
+            background: #030108;
+            border: 4px solid var(--border-retro);
+            padding: 16px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            color: var(--neon-green);
+            max-height: 380px;
+            overflow: auto;
+            white-space: pre-wrap;
+            box-shadow: inset 3px 3px 0px #000;
+        }
+
+        .response-status {
+            display: inline-block;
+            padding: 6px 10px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 9px;
+            margin-bottom: 12px;
+            border: 2px solid #000;
+        }
+
+        .status-200 { background: #047835; color: var(--neon-green); }
+        .status-400 { background: #9d174d; color: var(--neon-pink); }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 9px;
+            color: var(--neon-yellow);
+            margin-bottom: 8px;
+            text-shadow: 1px 1px 0px #000;
+        }
+
+        /* Helper notice */
+        .notice {
+            background: rgba(255, 230, 0, 0.08);
+            border: 3px solid var(--neon-yellow);
+            padding: 14px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            color: var(--neon-yellow);
+            box-shadow: var(--pixel-shadow-sm);
+        }
+
+        /* CRT flicker glow animation */
+        @keyframes pulse-glow {
+            0% { text-shadow: 0 0 6px var(--neon-green); }
+            100% { text-shadow: 0 0 18px var(--neon-green), 0 0 28px var(--neon-cyan); }
+        }
+
+        /* Copy success toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--neon-green);
+            color: #000;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            padding: 14px 22px;
+            border: 4px solid #000;
+            box-shadow: var(--pixel-shadow);
+            display: none;
+            z-index: 1000;
+            animation: bounce 0.3s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Window Frame -->
+        <div class="window-frame">
+            <div class="window-header">
+                <div class="window-title">
+                    <span>🕹️</span> SYSTEM_INIT.EXE
+                </div>
+                <div class="window-controls">
+                    <span class="win-btn">_</span>
+                    <span class="win-btn">□</span>
+                    <span class="win-btn">✕</span>
+                </div>
+            </div>
+            <div class="window-body">
+                <div class="header-content">
+                    <div class="logo">
+                        <div class="logo-icon">👾</div>
+                        <div>
+                            <h1>csv-to-json-generator</h1>
+                            <div class="subtitle">RETRO ARCADE CSV TO REST API SUITE // v1.0.0</div>
+                        </div>
+                    </div>
+                    <div class="status-badge" id="systemStatus">SYS: ONLINE // 0 ROWS</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('uploadTab')">📁 1. DATA INPUT</button>
+            <button class="tab-btn" onclick="switchTab('schemaTab')">⚙️ 2. API CONFIG</button>
+            <button class="tab-btn" onclick="switchTab('sandboxTab')">🎮 3. LIVE SANDBOX</button>
+            <button class="tab-btn" onclick="switchTab('exportTab')">💾 4. CODE EXPORT</button>
+        </div>
+
+        <!-- TAB 1: DATA INPUT -->
+        <div id="uploadTab" class="panel active">
+            <div class="window-frame">
+                <div class="window-header">
+                    <div class="window-title">📂 MODULE: DATA_INGESTION.DAT</div>
+                    <div class="window-controls"><span class="win-btn">_</span><span class="win-btn">✕</span></div>
+                </div>
+                <div class="window-body">
+                    <div class="grid-2">
+                        <div>
+                            <div class="upload-zone" id="dropZone" onclick="document.getElementById('csvFileInput').click()">
+                                <div style="font-size: 48px; margin-bottom: 10px;">💾</div>
+                                <p style="font-family: 'Press Start 2P'; font-size: 11px; color: var(--neon-cyan); margin-bottom: 8px;">DROP CSV FILE HERE</p>
+                                <p style="color: var(--text-dim); font-size: 13px;">[CLICK TO BROWSE LOCAL DISK]</p>
+                                <input type="file" id="csvFileInput" accept=".csv,.txt" onchange="handleFileSelect(event)">
+                            </div>
+
+                            <div class="presets">
+                                <span>QUICK PRESETS:</span>
+                                <button class="pixel-btn" onclick="loadPreset('rpg')">⚔️ RPG</button>
+                                <button class="pixel-btn" onclick="loadPreset('cyber')">🤖 CYBER</button>
+                                <button class="pixel-btn" onclick="loadPreset('scores')">🏆 SCORES</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="form-group">
+                                <label class="form-label">&gt; PASTE RAW CSV BUFFER:</label>
+                                <textarea class="pixel-input" id="csvRawInput" rows="7" placeholder="id,name,type,price,rarity&#10;1,Iron Sword,Weapon,150,Common&#10;2,Health Potion,Consumable,50,Common"></textarea>
+                            </div>
+                            <div class="btn-group">
+                                <button class="pixel-btn green" onclick="parseRawCSV()">PARSE CSV ⚡</button>
+                                <button class="pixel-btn pink" onclick="clearData()">WIPE 🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Preview Grid -->
+                    <div style="margin-top: 30px;">
+                        <div class="form-label" style="margin-bottom: 12px;">📊 DATA INSPECTOR PREVIEW GRID:</div>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-label">TOTAL ROWS</div>
+                                <div class="stat-value" id="statRows">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">TOTAL COLUMNS</div>
+                                <div class="stat-value" id="statCols">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">PRIMARY KEY</div>
+                                <div class="stat-value" id="statKey">id / index</div>
+                            </div>
+                        </div>
+                        <div class="table-container" id="tablePreviewContainer">
+                            <p style="padding: 24px; color: var(--text-dim); text-align: center; font-family: 'Press Start 2P'; font-size: 10px;">[ NO DATA BUFFER LOADED ]</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: API CONFIG -->
+        <div id="schemaTab" class="panel">
+            <div class="window-frame">
+                <div class="window-header">
+                    <div class="window-title">⚙️ MODULE: ROUTE_CONFIG.SYS</div>
+                    <div class="window-controls"><span class="win-btn">_</span><span class="win-btn">✕</span></div>
+                </div>
+                <div class="window-body">
+                    <div class="notice">
+                        ⚡ CONFIGURATION ACTIVE: CSV records are auto-indexed into mock REST endpoints.
+                    </div>
+
+                    <div class="grid-2">
+                        <div>
+                            <div class="form-group">
+                                <label class="form-label">&gt; API RESOURCE NAME:</label>
+                                <input type="text" class="pixel-input" id="apiResourceName" value="items" oninput="updateEndpoints()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">&gt; BASE API VERSION:</label>
+                                <select class="pixel-input" id="apiVersion" onchange="updateEndpoints()">
+                                    <option value="v1">/api/v1</option>
+                                    <option value="v2">/api/v2</option>
+                                    <option value="rest">/rest</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">&gt; ENABLE PROTOCOLS:</label>
+                                <div style="display: flex; gap: 15px; margin-top: 10px; font-family: 'Press Start 2P'; font-size: 9px;">
+                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"><input type="checkbox" id="featPagination" checked> PAGINATION</label>
+                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"><input type="checkbox" id="featSearch" checked> FILTER</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="form-label">&gt; GENERATED ENDPOINTS ROUTING TABLE:</label>
+                            <div id="endpointsList" style="margin-top: 8px;">
+                                <div class="endpoint-box">
+                                    <div>
+                                        <span class="method-tag">GET</span>
+                                        <span class="endpoint-url">/api/v1/items</span>
+                                    </div>
+                                    <span style="font-size: 12px; color: var(--text-dim);">List all records</span>
+                                </div>
+                                <div class="endpoint-box">
+                                    <div>
+                                        <span class="method-tag">GET</span>
+                                        <span class="endpoint-url">/api/v1/items/:id</span>
+                                    </div>
+                                    <span style="font-size: 12px; color: var(--text-dim);">Get by ID</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: LIVE SANDBOX -->
+        <div id="sandboxTab" class="panel">
+            <div class="window-frame">
+                <div class="window-header">
+                    <div class="window-title">🎮 MODULE: API_SANDBOX.EXE</div>
+                    <div class="window-controls"><span class="win-btn">_</span><span class="win-btn">✕</span></div>
+                </div>
+                <div class="window-body">
+                    <div class="notice">
+                        🕹️ SIMULATION TERMINAL: Fire live HTTP requests against your in-memory CSV dataset.
+                    </div>
+
+                    <div class="sandbox-layout">
+                        <div>
+                            <div class="form-group">
+                                <label class="form-label">&gt; SELECT ENDPOINT:</label>
+                                <select class="pixel-input" id="sandboxEndpoint" onchange="updateSandboxParams()">
+                                    <option value="list">GET /api/v1/resource (List All)</option>
+                                    <option value="single">GET /api/v1/resource/:id (Get Single)</option>
+                                    <option value="search">GET /api/v1/resource?search=... (Search)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="paramIdGroup" style="display: none;">
+                                <label class="form-label">&gt; RECORD ID:</label>
+                                <input type="text" class="pixel-input" id="sandboxIdParam" value="1">
+                            </div>
+
+                            <div class="form-group" id="paramSearchGroup" style="display: none;">
+                                <label class="form-label">&gt; KEYWORD QUERY:</label>
+                                <input type="text" class="pixel-input" id="sandboxSearchParam" value="" placeholder="e.g. Sword...">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">&gt; PAGINATION LIMIT:</label>
+                                <input type="number" class="pixel-input" id="sandboxLimit" value="10" min="1" max="100">
+                            </div>
+
+                            <button class="pixel-btn green" onclick="executeSandboxRequest()" style="width: 100%; margin-top: 10px;">EXECUTE REQUEST ⚡</button>
+                        </div>
+
+                        <div>
+                            <label class="form-label">&gt; CONSOLE RESPONSE OUTPUT:</label>
+                            <div style="margin-top: 8px;">
+                                <div class="response-status status-200" id="responseStatus">STATUS: 200 OK</div>
+                                <div class="code-box" id="responseOutput">// Click "EXECUTE REQUEST" to test endpoint...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: CODE EXPORT -->
+        <div id="exportTab" class="panel">
+            <div class="window-frame">
+                <div class="window-header">
+                    <div class="window-title">💾 MODULE: EXPORT_COMPILER.DAT</div>
+                    <div class="window-controls"><span class="win-btn">_</span><span class="win-btn">✕</span></div>
+                </div>
+                <div class="window-body">
+                    <div class="notice">
+                        🚀 EXPORT ENGINE: Download your parsed dataset as JSON or generate production-ready backend servers.
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">&gt; TARGET FORMAT:</label>
+                        <div class="btn-group">
+                            <button class="pixel-btn" id="expBtnJson" onclick="setExportFormat('json')">📦 JSON</button>
+                            <button class="pixel-btn" id="expBtnExpress" onclick="setExportFormat('express')">🟢 EXPRESS.JS</button>
+                            <button class="pixel-btn" id="expBtnFastapi" onclick="setExportFormat('fastapi')">🐍 FASTAPI</button>
+                            <button class="pixel-btn" id="expBtnFetch" onclick="setExportFormat('fetch')">🌐 JS FETCH</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label class="form-label" style="margin-bottom:0;">&gt; GENERATED SOURCE BUFFER:</label>
+                            <button class="pixel-btn" onclick="copyExportCode()">📋 COPY</button>
+                        </div>
+                        <div class="code-box" id="exportCodeOutput" style="max-height: 380px; color: var(--neon-cyan);">// Select format above...</div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button class="pixel-btn green" onclick="downloadExportFile()">DOWNLOAD FILE 💾</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toastMessage">ACTION COMPLETED!</div>
+
+    <script>
+        // Global Application State
+        let csvData = [];
+        let csvColumns = [];
+        let currentExportFormat = 'json';
+
+        // Preset Datasets
+        const presets = {
+            rpg: `id,name,type,attack,price,rarity
+1,Iron Sword,Weapon,25,150,Common
+2,Fire Staff,Weapon,45,450,Rare
+3,Health Potion,Consumable,0,50,Common
+4,Dragon Shield,Armor,60,800,Epic
+5,Shadow Cloak,Armor,35,500,Rare
+6,Elixir of Mana,Consumable,0,120,Uncommon`,
+            cyber: `id,quest_title,faction,reward_credits,difficulty
+1,Infiltrate Arasaka Subnet,Netrunner,5000,Hard
+2,Recover Stolen Cyberware,Fixer,1200,Medium
+3,Deliver Package to Sector 7,Nomad,400,Easy
+4,Eliminate Rogue AI Unit,Militech,10000,Insane
+5,Hack Luxury Penthouse,Edgerunner,3500,Hard`,
+            scores: `rank,player_tag,score,level,class
+1,CyberKnight,99990,88,Paladin
+2,GlitchMatrix,87500,82,Hacker
+3,NeonValkyrie,76400,75,Mage
+4,ByteRunner,65200,68,Scout
+5,PixelSamurai,54300,60,Warrior`
+        };
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Load Preset
+        function loadPreset(key) {
+            document.getElementById('csvRawInput').value = presets[key];
+            parseRawCSV();
+        }
+
+        // Drag & Drop Handlers
+        const dropZone = document.getElementById('dropZone');
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            }, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+            }, false);
+        });
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('csvRawInput').value = e.target.result;
+                parseRawCSV();
+            };
+            reader.readAsText(file);
+        }
+
+        // Parse CSV
+        function parseRawCSV() {
+            const rawText = document.getElementById('csvRawInput').value.trim();
+            if (!rawText) {
+                alert('Please enter or upload CSV data first!');
+                return;
+            }
+
+            Papa.parse(rawText, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    csvData = results.data;
+                    csvColumns = results.meta.fields || (csvData.length > 0 ? Object.keys(csvData[0]) : []);
+                    
+                    updateUIStats();
+                    renderTablePreview();
+                    updateEndpoints();
+                    updateExportCode();
+                    
+                    showToast('CSV LOADED! (' + csvData.length + ' ROWS)');
+                },
+                error: function(err) {
+                    alert('Error parsing CSV: ' + err.message);
+                }
+            });
+        }
+
+        function clearData() {
+            csvData = [];
+            csvColumns = [];
+            document.getElementById('csvRawInput').value = '';
+            updateUIStats();
+            renderTablePreview();
+            updateEndpoints();
+            updateExportCode();
+            showToast('DATA BUFFER WIPED!');
+        }
+
+        // Update UI Stats & Table
+        function updateUIStats() {
+            const rowsCount = csvData.length;
+            const colsCount = csvColumns.length;
+            
+            document.getElementById('statRows').textContent = rowsCount;
+            document.getElementById('statCols').textContent = colsCount;
+            document.getElementById('systemStatus').textContent = `SYS: ONLINE // ${rowsCount} ROWS`;
+            
+            if (colsCount > 0) {
+                document.getElementById('statKey').textContent = csvColumns[0] + ' (Key)';
+            } else {
+                document.getElementById('statKey').textContent = 'id / index';
+            }
+        }
+
+        function renderTablePreview() {
+            const container = document.getElementById('tablePreviewContainer');
+            if (csvData.length === 0) {
+                container.innerHTML = '<p style="padding: 24px; color: var(--text-dim); text-align: center; font-family: \'Press Start 2P\'; font-size: 10px;">[ NO DATA BUFFER LOADED ]</p>';
+                return;
+            }
+
+            let html = '<table><thead><tr>';
+            csvColumns.forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            csvData.forEach((row, idx) => {
+                html += '<tr>';
+                csvColumns.forEach(col => {
+                    let val = row[col] !== undefined ? row[col] : '';
+                    html += `<td>${val}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // Endpoints Config
+        function updateEndpoints() {
+            const resource = document.getElementById('apiResourceName').value.trim() || 'items';
+            const version = document.getElementById('apiVersion').value;
+            const prefix = `/api/${version}/${resource}`;
+
+            const listElem = document.getElementById('endpointsList');
+            listElem.innerHTML = `
+                <div class="endpoint-box">
+                    <div>
+                        <span class="method-tag">GET</span>
+                        <span class="endpoint-url">${prefix}</span>
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-dim);">List all records</span>
+                </div>
+                <div class="endpoint-box">
+                    <div>
+                        <span class="method-tag">GET</span>
+                        <span class="endpoint-url">${prefix}/:id</span>
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-dim);">Get by ID</span>
+                </div>
+                <div class="endpoint-box">
+                    <div>
+                        <span class="method-tag">GET</span>
+                        <span class="endpoint-url">${prefix}/search?q=keyword</span>
+                    </div>
+                    <span style="font-size: 12px; color: var(--text-dim);">Filter search</span>
+                </div>
+            `;
+            updateExportCode();
+        }
+
+        // Sandbox Param Toggles
+        function updateSandboxParams() {
+            const endpointType = document.getElementById('sandboxEndpoint').value;
+            document.getElementById('paramIdGroup').style.display = (endpointType === 'single') ? 'block' : 'none';
+            document.getElementById('paramSearchGroup').style.display = (endpointType === 'search') ? 'block' : 'none';
+        }
+
+        // Execute Sandbox Request
+        function executeSandboxRequest() {
+            if (csvData.length === 0) {
+                alert('Please load CSV data first in Tab 1!');
+                return;
+            }
+
+            const endpointType = document.getElementById('sandboxEndpoint').value;
+            const limit = parseInt(document.getElementById('sandboxLimit').value) || 10;
+            const primaryKey = csvColumns.length > 0 ? csvColumns[0] : 'id';
+
+            let responseObj = {};
+            let status = 200;
+
+            if (endpointType === 'list') {
+                const sliceData = csvData.slice(0, limit);
+                responseObj = {
+                    status: "success",
+                    count: sliceData.length,
+                    total: csvData.length,
+                    data: sliceData
+                };
+            } else if (endpointType === 'single') {
+                const targetId = document.getElementById('sandboxIdParam').value.trim();
+                const found = csvData.find(row => String(row[primaryKey]) === targetId || String(row['id']) === targetId);
+                if (found) {
+                    responseObj = { status: "success", data: found };
+                } else {
+                    status = 404;
+                    responseObj = { status: "error", message: `Record with ID '${targetId}' not found.` };
+                }
+            } else if (endpointType === 'search') {
+                const query = document.getElementById('sandboxSearchParam').value.trim().toLowerCase();
+                const filtered = csvData.filter(row => {
+                    return Object.values(row).some(val => String(val).toLowerCase().includes(query));
+                }).slice(0, limit);
+
+                responseObj = {
+                    status: "success",
+                    query: query,
+                    count: filtered.length,
+                    data: filtered
+                };
+            }
+
+            const statusElem = document.getElementById('responseStatus');
+            statusElem.textContent = `STATUS: ${status} ${status === 200 ? 'OK' : 'NOT FOUND'}`;
+            statusElem.className = `response-status status-${status}`;
+
+            document.getElementById('responseOutput').textContent = JSON.stringify(responseObj, null, 2);
+        }
+
+        // Export Code Generator
+        function setExportFormat(format) {
+            currentExportFormat = format;
+            document.querySelectorAll('#exportTab .pixel-btn').forEach(b => {
+                if(b.id.startsWith('expBtn')) b.classList.remove('green');
+            });
+            const activeBtn = document.getElementById('expBtn' + format.charAt(0).toUpperCase() + format.slice(1));
+            if(activeBtn) activeBtn.classList.add('green');
+            updateExportCode();
+        }
+
+        function updateExportCode() {
+            const resource = document.getElementById('apiResourceName').value.trim() || 'items';
+            const version = document.getElementById('apiVersion').value;
+            const codeBox = document.getElementById('exportCodeOutput');
+
+            if (currentExportFormat === 'json') {
+                codeBox.textContent = JSON.stringify(csvData, null, 2);
+            } else if (currentExportFormat === 'express') {
+                codeBox.textContent = `// Node.js Express REST API Server
+// Requirements: npm install express cors
+const express = require('express');
+const cors = require('cors');
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+// Dataset parsed from CSV (${csvData.length} records)
+const ${resource} = ${JSON.stringify(csvData, null, 2)};
+
+// GET: List all records with optional limit
+app.get('/api/${version}/${resource}', (req, res) => {
+    const limit = parseInt(req.query.limit) || ${csvData.length};
+    res.json({
+        status: "success",
+        count: Math.min(limit, ${resource}.length),
+        total: ${resource}.length,
+        data: ${resource}.slice(0, limit)
+    });
+});
+
+// GET: Get single record by ID (${csvColumns[0] || 'id'})
+app.get('/api/${version}/${resource}/:id', (req, res) => {
+    const recordId = req.params.id;
+    const record = ${resource}.find(r => String(r['${csvColumns[0] || 'id'}']) === recordId);
+    
+    if (!record) {
+        return res.status(404).json({ status: "error", message: "Record not found" });
+    }
+    res.json({ status: "success", data: record });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(\`CSV to JSON API Server running on port \${PORT}\`);
+});`;
+            } else if (currentExportFormat === 'fastapi') {
+                codeBox.textContent = `# Python FastAPI REST Server
+# Requirements: pip install fastapi uvicorn
+from fastapi import FastAPI, HTTPException, Query
+from typing import Optional
+
+app = FastAPI(title="CSV to JSON API", version="1.0")
+
+# Dataset parsed from CSV (${csvData.length} records)
+DATASET = ${JSON.stringify(csvData, null, 4).replace(/true/g, 'True').replace(/false/g, 'False').replace(/null/g, 'None')}
+
+@app.get("/api/${version}/${resource}")
+def get_all_records(limit: int = Query(100, ge=1, le=1000)):
+    return {
+        "status": "success",
+        "count": min(limit, len(DATASET)),
+        "total": len(DATASET),
+        "data": DATASET[:limit]
+    }
+
+@app.get("/api/${version}/${resource}/{record_id}")
+def get_record_by_id(record_id: str):
+    for item in DATASET:
+        if str(item.get("${csvColumns[0] || 'id'}")) == record_id:
+            return {"status": "success", "data": item}
+    raise HTTPException(status_code=404, detail="Record not found")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)`;
+            } else if (currentExportFormat === 'fetch') {
+                codeBox.textContent = `// JavaScript Client Fetch Example
+async function fetchPixelApi() {
+    try {
+        const response = await fetch('http://localhost:3000/api/${version}/${resource}?limit=10');
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            console.log("Fetched records:", result.data);
+            result.data.forEach(item => {
+                console.log(\`- \${item.${csvColumns[1] || csvColumns[0] || 'name'}}\`);
+            });
+        }
+    } catch (err) {
+        console.error("API Error:", err);
+    }
+}
+
+fetchPixelApi();`;
+            }
+        }
+
+        function copyExportCode() {
+            const codeText = document.getElementById('exportCodeOutput').textContent;
+            navigator.clipboard.writeText(codeText).then(() => {
+                showToast('COPIED TO BUFFER!');
+            });
+        }
+
+        function downloadExportFile() {
+            let filename = 'api_export.json';
+            let content = document.getElementById('exportCodeOutput').textContent;
+            let mime = 'application/json';
+
+            if (currentExportFormat === 'express') {
+                filename = 'server.js';
+                mime = 'text/javascript';
+            } else if (currentExportFormat === 'fastapi') {
+                filename = 'main.py';
+                mime = 'text/plain';
+            } else if (currentExportFormat === 'fetch') {
+                filename = 'client_snippet.js';
+                mime = 'text/javascript';
+            }
+
+            const blob = new Blob([content], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast(`DOWNLOADED ${filename}!`);
+        }
+
+        // Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toastMessage');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // Initialize with default preset on load
+        window.onload = function() {
+            loadPreset('rpg');
+        };
+    </script>
+</body>
+</html>
